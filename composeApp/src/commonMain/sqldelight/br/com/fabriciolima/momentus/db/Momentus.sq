@@ -1,0 +1,147 @@
+-- ARQUIVO: composeApp/src/commonMain/sqldelight/br/com/fabriciolima/momentus/db/Momentus.sq
+-- (CÓDIGO COMPLETO)
+
+-- ==================================================================
+-- DEFINIÇÃO DAS TABELAS (Estrutura)
+-- ==================================================================
+
+-- Renomeamos 'Rotina' para 'Categoria', como no seu projeto
+CREATE TABLE Categoria (
+    id TEXT NOT NULL PRIMARY KEY,
+    nome TEXT NOT NULL,
+    duracaoPadraoMinutos INTEGER NOT NULL,
+    cor TEXT NOT NULL,
+    descricao TEXT,
+    tag TEXT
+);
+
+CREATE TABLE Meta (
+    rotinaId TEXT NOT NULL PRIMARY KEY,
+    metaMinutosSemanal INTEGER NOT NULL,
+    FOREIGN KEY(rotinaId) REFERENCES Categoria(id) ON DELETE CASCADE
+);
+
+CREATE TABLE ItemCronograma (
+    id TEXT NOT NULL PRIMARY KEY,
+    titulo TEXT NOT NULL,
+    descricao TEXT,
+    data INTEGER, -- Salvaremos como Long (Timestamp) para eventos únicos
+    diaDaSemana TEXT, -- Para eventos de template (ex: "SEG")
+    horarioInicio TEXT NOT NULL,
+    horarioTermino TEXT,
+    rotinaId TEXT NOT NULL, -- ID da Categoria
+    FOREIGN KEY(rotinaId) REFERENCES Categoria(id) ON DELETE CASCADE
+);
+
+CREATE TABLE Template (
+    id TEXT NOT NULL PRIMARY KEY,
+    nome TEXT NOT NULL
+);
+
+CREATE TABLE TemplateItem (
+    id TEXT NOT NULL PRIMARY KEY,
+    templateId TEXT NOT NULL,
+    diaDaSemana TEXT NOT NULL,
+    horarioInicio TEXT NOT NULL,
+    rotinaId TEXT NOT NULL, -- ID da Categoria
+    FOREIGN KEY(templateId) REFERENCES Template(id) ON DELETE CASCADE,
+    FOREIGN KEY(rotinaId) REFERENCES Categoria(id) ON DELETE CASCADE
+);
+
+CREATE TABLE HabitoConcluido (
+    itemCronogramaId TEXT NOT NULL PRIMARY KEY,
+    dataConclusao INTEGER NOT NULL -- Salvaremos como Long (Timestamp)
+);
+
+-- ==================================================================
+-- QUERIES (Nossas "Funções do DAO")
+-- ==================================================================
+
+-- Queries da Categoria (antigo RotinaDao)
+getRotinasComMetas:
+SELECT Categoria.*, Meta.*
+FROM Categoria
+LEFT JOIN Meta ON Categoria.id = Meta.rotinaId
+ORDER BY nome ASC;
+
+getAllCategorias:
+SELECT * FROM Categoria;
+
+insertCategoria:
+INSERT OR REPLACE INTO Categoria(id, nome, duracaoPadraoMinutos, cor, descricao, tag)
+VALUES (?, ?, ?, ?, ?, ?);
+
+deleteCategoria:
+DELETE FROM Categoria WHERE id = ?;
+
+
+-- Queries da Meta (antigo MetaDao)
+insertMeta:
+INSERT OR REPLACE INTO Meta(rotinaId, metaMinutosSemanal)
+VALUES (?, ?);
+
+getMetaParaRotina:
+SELECT * FROM Meta WHERE rotinaId = ?;
+
+
+-- Queries do HabitoConcluido (antigo HabitoConcluidoDao)
+insertHabitoConcluido:
+INSERT OR REPLACE INTO HabitoConcluido(itemCronogramaId, dataConclusao)
+VALUES (?, ?);
+
+deleteHabitoConcluido:
+DELETE FROM HabitoConcluido WHERE itemCronogramaId = ?;
+
+getIdsConcluidos:
+SELECT itemCronogramaId FROM HabitoConcluido;
+
+
+-- Queries do ItemCronograma (antigo ItemCronogramaDao)
+insertItemCronograma:
+INSERT OR REPLACE INTO ItemCronograma(id, titulo, descricao, data, diaDaSemana, horarioInicio, horarioTermino, rotinaId)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+
+deleteItemCronograma:
+DELETE FROM ItemCronograma WHERE id = ?;
+
+-- Pega todos os itens (ambos os tipos: únicos e recorrentes)
+getAllItensCronograma:
+SELECT * FROM ItemCronograma;
+
+-- Pega apenas os itens recorrentes (de template)
+getItensRecorrentesPorDia:
+SELECT * FROM ItemCronograma WHERE diaDaSemana = ?;
+
+deleteAllCronogramaItems:
+DELETE FROM ItemCronograma;
+
+
+-- Query para Estatísticas
+getStats:
+SELECT
+    C.nome AS nomeRotina,
+    C.cor AS corRotina,
+    SUM(C.duracaoPadraoMinutos) as totalMinutos
+FROM ItemCronograma AS ic
+JOIN Categoria AS C ON ic.rotinaId = C.id
+GROUP BY C.nome, C.cor;
+
+
+-- Queries de Template
+getAllTemplates:
+SELECT * FROM Template ORDER BY nome ASC;
+
+insertTemplate:
+INSERT OR REPLACE INTO Template(id, nome) VALUES (?, ?);
+
+deleteTemplate:
+DELETE FROM Template WHERE id = ?;
+
+
+-- Queries de TemplateItem
+insertTemplateItem:
+INSERT OR REPLACE INTO TemplateItem(id, templateId, diaDaSemana, horarioInicio, rotinaId)
+VALUES (?, ?, ?, ?, ?);
+
+getItemsForTemplate:
+SELECT * FROM TemplateItem WHERE templateId = ?;
