@@ -4,21 +4,44 @@
 package br.com.fabriciolima.momentus.viewmodel
 
 import br.com.fabriciolima.momentus.data.MomentusRepository
+import br.com.fabriciolima.momentus.data.RotinaComMeta
 import br.com.fabriciolima.momentus.db.Categoria
 import br.com.fabriciolima.momentus.db.Meta
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import org.koin.core.component.inject
 
 class MainViewModel : KoinViewModel() {
     private val repository: MomentusRepository by inject()
 
-    // TODO: Converter LiveData para StateFlow
-    val rotinas = repository.getRotinasComMetas()
+    // --- MODIFICAÇÃO: LiveData -> StateFlow ---
+    // 1. Criamos um 'MutableStateFlow' privado que podemos modificar.
+    private val _rotinas = MutableStateFlow<List<RotinaComMeta>>(emptyList())
+    // 2. Expomos um 'StateFlow' público e imutável para a UI observar.
+    val rotinas: StateFlow<List<RotinaComMeta>> = _rotinas.asStateFlow()
 
     private var ultimaRotinaDeletada: Categoria? = null
 
+    init {
+        // 3. Coletamos o Flow do repositório e atualizamos nosso StateFlow.
+        viewModelScope.launch {
+            repository.getRotinasComMetas()
+                .catch { e ->
+                    // Tratar erro (ex: logar)
+                }
+                .collect { lista ->
+                    _rotinas.value = lista
+                }
+        }
+    }
+    // --- FIM DA MODIFICAÇÃO ---
+
     fun addRotina(novaRotina: Categoria) = viewModelScope.launch {
         repository.insertCategoria(novaRotina)
+        // A coleta do Flow acima atualizará a UI automaticamente.
     }
 
     fun deleteRotina(rotina: Categoria) = viewModelScope.launch {
