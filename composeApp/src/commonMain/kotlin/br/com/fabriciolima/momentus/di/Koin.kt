@@ -14,7 +14,8 @@ import org.koin.dsl.module
 // Esta é a função principal que inicia o Koin em ambas as plataformas (Android e iOS)
 fun initKoin(appDeclaration: KoinAppDeclaration = {}) = startKoin {
     appDeclaration()
-    modules(appModule()) // Carrega nossos módulos definidos abaixo
+    // --- MODIFICAÇÃO: Adicionamos o platformModule e o viewModelModule ---
+    modules(appModule(), platformModule, viewModelModule)
 }
 
 // --- NOSSOS MÓDULOS DE INJEÇÃO ---
